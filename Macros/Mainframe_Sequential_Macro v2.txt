@@ -1,0 +1,124 @@
+*---WALTER SEQUENTIAL INVOICE SELECTION MACRO 2/25/2015
+
+*--------------------------------BEGIN--------------------------------
+Wait(35,Status="Unlocked")
+invHandle = open("C:\Temp\Input.txt", "input")
+custHandle = open("C:\Temp\Custs.txt", "input")
+singleSolution = "False"
+macroVersion = "1.0"
+
+*------ Test version for compatibility --------
+cust1 = Get(custHandle)
+cash1 = Get(invHandle)
+if cust1 != macroVersion
+   Messagebox("Your mainframe macro version doesn't match your excel macro version. Mainframe version is " + macroVersion + ". Excel version is " + cust1 + ". Please update your macros.","WARNING!",1)
+   Exit
+else
+   if cash1 != macroVersion
+      Messagebox("Your mainframe macro version doesn't match your excel macro version. Mainframe version is " + macroVersion + ". Excel version is " + cash1 + ". Please update your macros.","WARNING!",1)
+      Exit
+   endif
+endif
+*---------------- End Test --------------------
+
+
+
+*------------------------------MAIN LOOP------------------------------
+While not(Eof(invHandle))
+   Wait(30,Status="Unlocked")
+
+   Call typeCustomers
+   Call clearInvoices
+   Call enterFourChains
+   Call cyclePageSelect
+EndWhile
+*----------------------------END MAIN LOOP----------------------------
+
+*------------Close invhandle, clear invoices, notify user, and drop() all variables from memory.
+close(invHandle)
+Wait(30,Status="Unlocked")
+Call clearInvoices
+if singleSolution != "False"
+   Call typeCustomers
+   Messagebox("Finished. This macro run had only one customer number: " + singleSolution + " it has been typed again for convenience, but the mainframe will change it to the original customer number the next time you hit shift+F4. Please keep that in mind.")
+else
+   Messagebox("Finished.")
+endif
+Drop()
+*----------------------------------END---------------------------------
+
+
+
+*-----------------------------SUBROUTINES-----------------------------
+typeCustomers: Subroutine
+   if singleSolution != "False"
+      Key("MoveCursor",6,9)
+      Type(singleSolution)
+   else
+      if not(EoF(custHandle))
+         Key("PF16")
+         Wait(35,Status="Unlocked")
+         Key("MoveCursor",6,9)
+         For i = 0 to 13
+            Key("EraseEndofField")
+            Key("Tab")
+         Next i
+         Key("MoveCursor",6,9)
+         For i = 0 to 13
+            if not(Eof(custHandle))
+               cust1 = Get(custHandle)
+               Type(cust1)
+            else
+               if i = 1
+                  singleSolution = cust1
+               endif
+            endif
+         Next i
+         close(custHandle)
+      endif
+   endif
+   Wait(30,Status="Unlocked")
+Return
+*---------------------------------------------------------
+clearInvoices: Subroutine
+   Key("MoveCursor",10,12)
+   Key("EraseEndofField")
+   for i = 1 to 7
+      Key("Tab")
+      Key("EraseEndofField")
+   Next i
+Return
+*---------------------------------------------------------
+enterFourChains: Subroutine
+   Key("MoveCursor",10,12)
+   For i = 1 to 4
+      if not(Eof(invHandle))
+         cash1 = Get(invHandle)
+         Type(left(cash1,9))
+         Type(mid(cash1,11,9))
+      Endif
+   Next i
+   Key("PF3")
+Return
+*---------------------------------------------------------
+cyclePageSelect: Subroutine
+   Start:
+   Wait(30,Status="Unlocked")
+
+   For i = 9 to 20
+      Key("MoveCursor",i,1)
+      type("S")
+   Next i
+
+   if onscreen("NO FURTHER PAGING AVAILABLE")
+      Key("PF16")
+   else
+      if onscreen("END OF INVOICES OR SELECTIONS")
+         Key("PF16")
+      else
+         Key("PF2")
+         goto start:
+      endif
+   endif
+Return
+*---------------------------------------------------------
